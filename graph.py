@@ -11,8 +11,12 @@ class Graph:
 
     def addEdge(self, from_vertex, to_vertex):
         if from_vertex in self.vertices and to_vertex in self.vertices:
-            self.vertices[from_vertex].add(to_vertex)
-            print(f"Edge added from '{from_vertex}' to '{to_vertex}'.")
+            # Check if the edge already exists
+            if to_vertex in self.vertices[from_vertex]:
+                print(f"Error: {from_vertex} is already following {to_vertex}.")
+            else:
+                self.vertices[from_vertex].add(to_vertex)
+                print(f"Edge added from '{from_vertex}' to '{to_vertex}'.")
         else:
             print(f"Error: One or both vertices ('{from_vertex}', '{to_vertex}') not found. Cannot add edge.")
 
