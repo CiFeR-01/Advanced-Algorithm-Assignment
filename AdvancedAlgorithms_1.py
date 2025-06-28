@@ -1,47 +1,47 @@
 import random
+import datetime
 
 class HashTable:
-    """
-    A simple hash table implementation using separate chaining for collision resolution.
-    """
     def __init__(self, size):
-        """
-        Initializes the hash table with a specified size.
-        Each slot in the table is a list (chain) to store elements that hash to the same index.
-        """
         self.size = size
         self.table = [[] for _ in range(self.size)]
-        self.collisions = 0 # Counter for collisions
+        self.collisions = 0  # Counter for collisions
 
     def _hash(self, ic_number_str):
         """
-        Generates a hash code (index) for a given Malaysian IC number string.
-        It uses the folding technique:
-        1. The 12-digit IC number string is split into three 4-digit parts.
-        2. These parts are converted to integers and summed.
-        3. The sum is then modulo the hash table size to get the final index.
+        Generates a hash code for a Malaysian IC Number using a folding technique.
+        The IC number is expected as a 12-digit string (e.g., "YYMMDD-PB-XXXX" without hyphens).
 
-        Args:
-            ic_number_str (str): A 12-digit string representing the Malaysian IC number.
-
-        Returns:
-            int: The calculated hash index for the IC number.
-
-        Raises:
-            ValueError: If the input IC number is not a valid 12-digit string.
+        This function strictly processes 12-digit numeric strings.
+        It is designed for the standard Malaysian IC Number format.
+        It CANNOT handle other formats like a 16-digit IC number, as it explicitly
+        validates the input to be a 12-digit string and relies on splitting
+        it into three 4-digit parts. Passing a different length string would
+        result in a ValueError.
+        
+        Folding Technique:
+        The 12-digit numeric string is conceptually divided into three 4-digit parts.
+        These parts are then summed, and the modulo operator is applied with the
+        hash table's size to derive the final hash index.
         """
-        # Validate the input IC number string
-        if not isinstance(ic_number_str, str) or len(ic_number_str) != 12 or not ic_number_str.isdigit():
-            raise ValueError("IC number must be a 12-digit string containing only digits.")
+        # Remove hyphens for internal processing
+        numeric_ic_str = ic_number_str.replace('-', '')
+
+        # Validate the input numeric IC number string after removing hyphens
+        # It should now be a 12-digit string containing only digits.
+        if not isinstance(numeric_ic_str, str) or len(numeric_ic_str) != 12 or not numeric_ic_str.isdigit():
+            # This should ideally not happen if generate_unique_ic_numbers is working correctly,
+            # but it's a good safeguard for unexpected inputs.
+            raise ValueError(
+                f"Processed IC number '{numeric_ic_str}' is not a valid 12-digit numeric string."
+            )
 
         # Split the 12-digit IC number string into three 4-digit parts
-        # Example: "YYYYMMDDPBNNN#" -> "YYYY", "MMDD", "PBNN", "N#"
-        # For simplicity and effectiveness, we'll take consecutive 4-digit chunks.
-        part1 = int(ic_number_str[0:4])   # First 4 digits
-        part2 = int(ic_number_str[4:8])   # Next 4 digits
-        part3 = int(ic_number_str[8:12])  # Last 4 digits
+        part1 = int(numeric_ic_str[0:4])   # First 4 digits (YYMM)
+        part2 = int(numeric_ic_str[4:8])   # Next 4 digits (DDPB)
+        part3 = int(numeric_ic_str[8:12])  # Last 4 digits (XXXX)
 
-        # Sum the integer values of these parts
+        # Sum the integer values of these parts (folding)
         sum_of_parts = part1 + part2 + part3
 
         # Apply the modulo operator with the table size to get the hash index
@@ -49,13 +49,10 @@ class HashTable:
 
     def insert(self, ic_number_str):
         """
-        Inserts a Malaysian IC number into the hash table.
-        It calculates the hash index and adds the IC number to the chain at that index.
-        If the chain at the calculated index is not empty before adding the new element,
-        it increments the collision counter.
-
-        Args:
-            ic_number_str (str): The 12-digit IC number string to insert.
+        Inserts an IC number into the hash table.
+        Uses separate chaining to handle collisions: if multiple IC numbers
+        hash to the same index, they are stored in a list (chain) at that index.
+        Increments a collision counter if an item is inserted into a non-empty chain.
         """
         try:
             index = self._hash(ic_number_str)
@@ -71,73 +68,137 @@ class HashTable:
             print(f"Error inserting IC number '{ic_number_str}': {e}")
 
     def get_total_collisions(self):
-        """
-        Returns the total number of collisions recorded during insertions into this hash table.
-
-        Returns:
-            int: The total count of collisions.
-        """
+        """Returns the total number of collisions recorded during insertions."""
         return self.collisions
+
+    def display_table(self, limit=None): # Added limit parameter
+        """
+        Displays the contents of the hash table. 
+        Each entry shows the index and any IC numbers stored at that index.
+        Numbers that caused collisions will be displayed as a chain.
+        If 'limit' is specified, only the first 'limit' entries are displayed.
+        """
+        print(f"\n--- Hash Table with size {self.size} Contents ---")
+        if limit and limit < self.size:
+            print(f"--- Displaying first {limit} entries ---")
+
+        display_count = 0
+        for i, chain in enumerate(self.table):
+            if limit and display_count >= limit:
+                break
+            if chain:  # Only print non-empty chains
+                # Join all IC numbers in the chain with ' --> ' to show collisions
+                print(f"table[{i}] --> {' --> '.join(chain)}")
+            else:
+                # Print empty entries as well, similar to the provided image examples
+                print(f"table[{i}]")
+            display_count += 1
+            
+        print(f"--- End of Hash Table Contents (Size {self.size}) ---\n")
+
+
+def generate_random_date_yymmdd():
+    """Generates a random date in YYMMDD format for IC numbers."""
+    start_date = datetime.date(1950, 1, 1)
+    end_date = datetime.date(2005, 12, 31) # Limiting birth year for realism
+    
+    time_between_dates = end_date - start_date
+    days_between_dates = time_between_dates.days
+    random_number_of_days = random.randrange(days_between_dates)
+    random_date = start_date + datetime.timedelta(days=random_number_of_days)
+    
+    return random_date.strftime('%y%m%d')
+
+def generate_random_pb_code():
+    """
+    Generates a random two-digit place of birth (PB) code.
+    These codes are based on common Malaysian IC birth codes for realism.
+    """
+
+    ic_codes = [
+        "01", "21", "22", "23", "24",  # Johor
+        "02", "25", "26", "27",  # Kedah
+        "03", "28", "29",  # Kelantan
+        "04", "30",  # Melaka
+        "05", "31", "59",  # Negeri Sembilan
+        "06", "32", "33",  # Pahang
+        "07", "34", "35",  # Penang
+        "08", "36", "37", "38", "39",  # Perak
+        "09", "40",  # Perlis
+        "10", "41", "42", "43", "44",  # Selangor
+        "11", "45", "46",  # Terengganu
+        "12", "47", "48", "49",  # Sabah
+        "13", "50", "51", "52", "53",  # Sarawak
+        "14", "54", "55", "56", "57",  # W.P.(KL)
+        "15", "58",  # W.P.(Labuan)
+        "16",  # W.P.(Putrajaya)
+        "82"   # Unknown State
+    ]
+    return random.choice(ic_codes)
+
+def generate_random_four_digits():
+    """Generates a random four-digit number (0000-9999), padded with leading zeros."""
+    return str(random.randint(0, 9999)).zfill(4)
 
 def generate_unique_ic_numbers(count):
     """
-    Generates a list of unique 12-digit random IC number strings.
-    Each IC number is a sequence of 12 random digits.
-
-    Args:
-        count (int): The number of unique IC numbers to generate.
-
-    Returns:
-        list: A list of unique 12-digit IC number strings.
+    Generates a list of unique Malaysian IC numbers in YYMMDD-PB-XXXX format.
+    The function ensures that all generated IC numbers are unique within the list.
     """
-    ic_numbers = set() # Use a set to ensure uniqueness
+    ic_numbers = set()  # Use a set to ensure uniqueness
+    print(f"Generating {count} unique IC numbers...")
     while len(ic_numbers) < count:
-        # Generate a random 12-digit string
-        # Each digit is randomly chosen from 0 to 9
-        digits = "".join([str(random.randint(0, 9)) for _ in range(12)])
-        ic_numbers.add(digits)
-    return list(ic_numbers) # Convert set to list for iteration
+        yymmdd = generate_random_date_yymmdd()
+        pb = generate_random_pb_code() # Use the new function for realistic PB codes
+        xxxx = generate_random_four_digits()
+        
+        formatted_ic = f"{yymmdd}-{pb}-{xxxx}"
+        ic_numbers.add(formatted_ic)
+    print(f"Finished generating {len(ic_numbers)} unique IC numbers.\n")
+    return list(ic_numbers)  # Convert set to list for iteration
 
 # Main program execution block
 if __name__ == "__main__":
-    num_ics_to_insert = 1000 # Number of IC numbers to insert in each round
-    num_rounds = 10          # Number of rounds for each hash table size
-    
-    # Define the sizes of the two hash tables
-    table_sizes = [1009, 2003] # Prime numbers are often chosen for hash table sizes
+    num_ics_to_insert = 1000  # Number of IC numbers to insert in each round, as required
+    num_rounds = 10           # Number of rounds for each hash table size, as required
+
+    # Define the sizes of the two hash tables as required
+    table_sizes = [1009, 2003]  # Prime numbers are often chosen for hash table sizes
     
     # Dictionary to store collision data for all rounds for each table size
     all_table_collisions = {size: [] for size in table_sizes}
+    # Dictionary to store average collisions for each table size
+    average_collisions_per_table = {}
 
-    print("--- Starting Hashing Simulation ---\n")
+    print("--- Starting Hashing Simulation ---")
 
     # Iterate through each specified hash table size
     for table_size in table_sizes:
-        print(f"Simulating for Hash Table Size: {table_size}")
-        round_collisions = [] # List to store collision counts for current table size's rounds
+        print(f"\nSimulating for Hash Table Size: {table_size}")
+        round_collisions = []  # List to store collision counts for current table size's rounds
         
         # Run the simulation for the specified number of rounds
         for round_num in range(1, num_rounds + 1):
             # Create a new hash table instance for each round to reset collision count
             hash_table = HashTable(table_size)
             
-            # Generate 1000 unique IC numbers for the current round
+            # Generate IC numbers for the current round
             ic_numbers_for_round = generate_unique_ic_numbers(num_ics_to_insert)
             
-            # Display the first 10 generated IC numbers for this round
-            print(f"  Round {round_num}: Generated {num_ics_to_insert} IC numbers. ")
-            for i, ic in enumerate(ic_numbers_for_round[:10]):
-                print(f"    - {ic}")
+            print(f"  Round {round_num}: Inserting {num_ics_to_insert} IC numbers into table of size {table_size}...")
 
             # Insert each generated IC number into the hash table
             for ic in ic_numbers_for_round:
                 hash_table.insert(ic)
             
+            # Display the first 20 entries of the hash table for each round, as requested
+            hash_table.display_table(limit=20)
+
             # Get the total collisions recorded for this round
             collisions_this_round = hash_table.get_total_collisions()
-            round_collisions.append(collisions_this_round) # Store the collision count
+            round_collisions.append(collisions_this_round)  # Store the collision count
             
-            # Display total collisions for the current round
+            # Display total collisions for the current round, as required
             print(f"  Round {round_num}: Total Collisions = {collisions_this_round}")
             
         # Store all round collision data for the current table size
@@ -145,8 +206,24 @@ if __name__ == "__main__":
         
         # Calculate the average collisions for this hash table size over all rounds
         average_collisions = sum(round_collisions) / num_rounds
+        average_collisions_per_table[table_size] = average_collisions # Store average for later display
         
-        # Display the average collisions for the current table size
-        print(f"Average Collisions for Table Size {table_size}: {average_collisions:.2f}\n")
+    print("\n--- Simulation Complete ---")
+    
+    # Display summary of all collisions for all tables, as required (uncommented)
+    print("\n--- Summary of Collisions Per Round ---")
+    print(f"----------------------------------------------------------------------------------------")
+    print(f"| {'Round':<8} | {'Table 1 (Size 1009) Collisions':<35} | {'Table 2 (Size 2003) Collisions':<35} |")
+    print(f"----------------------------------------------------------------------------------------")
+    for i in range(num_rounds):
+        # Retrieve collision counts for both table sizes for the current round
+        col1 = all_table_collisions[1009][i]
+        col2 = all_table_collisions[2003][i]
+        print(f"| {i+1:<8} | {col1:<35} | {col2:<35} |")
 
-    print("--- Simulation Complete ---")
+    print(f"----------------------------------------------------------------------------------------")    
+
+    # Display average collisions for each table at the end, as requested
+    print("\n--- Average Collisions Across All Rounds ---")
+    for table_size, avg_collisions in average_collisions_per_table.items():
+        print(f"Average Collisions for Table Size {table_size}: {avg_collisions:.2f}")
