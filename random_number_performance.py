@@ -1,16 +1,20 @@
+#random_number_performance.py
+
 import random
 import threading
 import time
 import statistics
 
-def generate_random_numbers(num_count=100, min_val=0, max_val=10000):
+def generate_random_numbers(num_count=1000, min_val=0, max_val=10000):
     """
     Generates a list of random numbers within a specified range.
     """
     return [random.randint(min_val, max_val) for _ in range(num_count)]
 
-# Global variables for storing thread-specific timing.
-# A lock is used to synchronize access to these shared resources.
+# Global variables for storing thread-specific results and timings.
+# A lock is used to synchronize access to these shared resources,
+# preventing race conditions when multiple threads write concurrently.
+thread_results = []
 thread_start_times = {}
 thread_end_times = {}
 thread_lock = threading.Lock()
@@ -26,16 +30,21 @@ def thread_task(set_id):
     with thread_lock:
         thread_start_times[set_id] = start_time_thread
 
-    # Generate the set of random numbers (results are not stored globally in this simpler version)
-    _ = generate_random_numbers() 
+    numbers = generate_random_numbers() # Generate the set of random numbers
     
     end_time_thread = time.monotonic_ns()
     
-    # Safely record thread's end time
+    # Safely record thread's end time and generated numbers
     with thread_lock:
         thread_end_times[set_id] = end_time_thread
+        thread_results.append({
+            "set_id": set_id,
+            "numbers": numbers,
+            "start_time": start_time_thread,
+            "end_time": end_time_thread
+        })
 
-def run_with_multithreading(num_sets=3, num_rounds=3): # Reduced rounds for simplicity
+def run_with_multithreading(num_sets=3, num_rounds=10):
     """
     Orchestrates the generation of random numbers using multiple threads
     over several rounds. Measures and displays the total and average
@@ -46,7 +55,8 @@ def run_with_multithreading(num_sets=3, num_rounds=3): # Reduced rounds for simp
 
     for round_num in range(1, num_rounds + 1):
         # Reset global data for each new round to ensure accuracy
-        global thread_start_times, thread_end_times
+        global thread_results, thread_start_times, thread_end_times
+        thread_results = []
         thread_start_times = {}
         thread_end_times = {}
 
@@ -80,7 +90,7 @@ def run_with_multithreading(num_sets=3, num_rounds=3): # Reduced rounds for simp
     return round_times
 
 
-def run_without_multithreading(num_sets=3, num_rounds=3): # Reduced rounds for simplicity
+def run_without_multithreading(num_sets=3, num_rounds=10):
     """
     Executes the random number generation sequentially (without threads)
     over several rounds. Measures and displays the total and average
@@ -93,9 +103,11 @@ def run_without_multithreading(num_sets=3, num_rounds=3): # Reduced rounds for s
         # Record start time before sequential execution
         start_time_sequential = time.monotonic_ns()
         
-        # Generate each set of random numbers one after another (results are not stored)
+        sequential_results = []
+        # Generate each set of random numbers one after another
         for i in range(num_sets):
-            _ = generate_random_numbers()
+            numbers = generate_random_numbers()
+            sequential_results.append({f"Set_{i+1}": numbers})
             
         # Record end time after all sets are generated
         end_time_sequential = time.monotonic_ns()
@@ -111,10 +123,12 @@ def run_without_multithreading(num_sets=3, num_rounds=3): # Reduced rounds for s
 # Main execution block
 if __name__ == "__main__":
     # Perform tests for both multithreaded and sequential scenarios
-    multithreaded_times = run_with_multithreading() # Use default 3 rounds
-    sequential_times = run_without_multithreading() # Use default 3 rounds
+    multithreaded_times = run_with_multithreading(num_sets=3, num_rounds=10)
+    sequential_times = run_without_multithreading(num_sets=3, num_rounds=10)
 
-    # Print a final comparative summary of the test results (simplified)
+    # Print a final comparative summary of the test results
     print("\n--- Summary ---")
+    print(f"Multithreaded Round Times: {[f'{t:,} ns' for t in multithreaded_times]}")
+    print(f"Sequential Round Times: {[f'{t:,} ns' for t in sequential_times]}")
     print(f"Average Multithreaded Time: {statistics.mean(multithreaded_times):,.0f} ns")
     print(f"Average Sequential Time: {statistics.mean(sequential_times):,.0f} ns")
