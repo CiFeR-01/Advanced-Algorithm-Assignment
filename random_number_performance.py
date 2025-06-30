@@ -4,7 +4,7 @@ import time
 import statistics
 from typing import List, Dict, Any
 
-# Overall simulation parameters, defined globally as requested.
+# Overall simulation parameters
 # These values will be used by both multithreaded and sequential tests.
 GLOBAL_NUM_SETS = 3
 GLOBAL_NUM_ROUNDS = 10
