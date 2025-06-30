@@ -63,43 +63,56 @@ def display_menu():
     print("\n  x) Exit")
     print("==============================================")
 
-def get_person_choice(prompt="Select a person:"):
+def select_from_list(items, prompt="Select an item:", item_type="profile"):
     """
-    Displays a numbered list of all available users and prompts the user
-    to select a person by number. Returns the selected person's name or None.
-    Enhanced for better visual appeal.
+    Displays a numbered list of items and prompts the user to select one by number.
+    Returns the selected item or None.
     """
-    
     print(f"==============================================")
     print(f"      --- {prompt} ---")
     print(f"==============================================")
-    user_names = list(people_profiles.keys())
     
-    if not user_names:
-        print("No users available to select.")
+    if not items:
+        print(f"No {item_type}s available to select.")
         return None
 
-    for i, name in enumerate(user_names):
-        print(f"{i+1}.) {name}")
+    for i, item in enumerate(items):
+        print(f"{i+1}.) {item}")
     print("----------------------------------------------")
     
     while True:
         try:
-            choice_num_str = input(f"Select whose profile to view (1 - {len(user_names)}): ").strip()
+            choice_num_str = input(f"Select a {item_type} (1 - {len(items)}): ").strip()
             if not choice_num_str.isdigit():
                 print("Invalid input. Please enter a number.")
                 continue
 
             choice_num = int(choice_num_str)
-            if 1 <= choice_num <= len(user_names):
-                return user_names[choice_num - 1]
+            if 1 <= choice_num <= len(items):
+                return items[choice_num - 1]
             else:
-                print(f"Invalid number. Please enter a number between 1 and {len(user_names)}.")
+                print(f"Invalid number. Please enter a number between 1 and {len(items)}.")
         except ValueError:
             print("Invalid input. Please enter a valid number.")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
             return None
+
+def get_person_choice(prompt="Select a person:"):
+    """
+    A specialized wrapper for select_from_list to choose from all people profiles.
+    """
+    return select_from_list(list(people_profiles.keys()), prompt, "person")
+
+def get_followed_choice(follower_name, prompt="Select a user to unfollow:"):
+    """
+    A specialized wrapper for select_from_list to choose from a user's followed accounts.
+    """
+    followed_accounts = social_media_graph.listOutgoingAdjacentVertex(follower_name)
+    if not followed_accounts:
+        print(f"\n{follower_name} is not following anyone to unfollow.")
+        return None
+    return select_from_list(list(followed_accounts), prompt, "followed account")
 
 
 def view_followers(graph, target_vertex):
@@ -148,7 +161,6 @@ def main():
         elif choice == '2':
             person_name = get_person_choice("View Details for Any Profile:")
             if person_name:
-                # Assuming display_profile method in Person class also has improved formatting
                 people_profiles[person_name].display_profile(ignore_privacy=True)
             press_any_key_to_continue()
 
@@ -177,19 +189,39 @@ def main():
             print(f"\n==============================================")
             print("     --- Add New User Profile ---")
             print(f"==============================================")
-            name = input("Enter new user's name: ").strip()
-            if not name:
-                print("User name cannot be empty.")
-                press_any_key_to_continue()
-                continue
-            if name in people_profiles:
-                print(f"A user with the name '{name}' already exists. Please choose a different name.")
-                press_any_key_to_continue()
-                continue
-            gender = input("Enter new user's gender: ").strip()
-            biography = input("Enter new user's biography: ").strip()
-            is_private_input = input("Is this profile private? (yes/no): ").strip().lower()
-            is_private = True if is_private_input == 'yes' else False
+            
+            # --- Input Validation for New User Profile ---
+            while True:
+                name = input("Enter new user's name: ").strip()
+                if not name:
+                    print("Error: User name cannot be empty. Please try again.")
+                elif name in people_profiles:
+                    print(f"Error: A user with the name '{name}' already exists. Please choose a different name.")
+                else:
+                    break # Valid name entered
+
+            while True:
+                gender = input("Enter new user's gender: ").strip()
+                if not gender:
+                    print("Error: Gender cannot be empty. Please try again.")
+                else:
+                    break # Valid gender entered
+
+            while True:
+                biography = input("Enter new user's biography: ").strip()
+                if not biography:
+                    print("Error: Biography cannot be empty. Please try again.")
+                else:
+                    break # Valid biography entered
+
+            while True:
+                is_private_input = input("Is this profile private? (yes/no): ").strip().lower()
+                if is_private_input in ['yes', 'no']:
+                    is_private = True if is_private_input == 'yes' else False
+                    break # Valid privacy setting entered
+                else:
+                    print("Error: Please enter 'yes' or 'no'.")
+            # --- End Input Validation ---
 
             new_person = Person(name, gender, biography, is_private)
             people_profiles[name] = new_person
@@ -207,20 +239,21 @@ def main():
         elif choice == '7':
             follower_name = get_person_choice("Select the user who wants to follow:")
             if follower_name:
-                followed_name = get_person_choice("Select the user to be followed:")
+                followed_name = get_person_choice("Select the user to be followed:") # This still uses the full list
                 if followed_name:
                     if follower_name == followed_name:
                         print("\n! ! ! A user cannot follow themselves. ! ! !")
                     else:
-                        social_media_graph.addEdge(follower_name, followed_name) # This will print "Edge added" or "already following"
+                        social_media_graph.addEdge(follower_name, followed_name)
             press_any_key_to_continue()
 
         elif choice == '8':
             unfollower_name = get_person_choice("Select the user who wants to unfollow:")
             if unfollower_name:
-                unfollowed_name = get_person_choice("Select the user to be unfollowed:")
-                if unfollowed_name:
-                    social_media_graph.removeEdge(unfollower_name, unfollowed_name) # This will print "Edge removed" or "not following"
+                # Use the new get_followed_choice to show only who the unfollower is following
+                unfollowed_name = get_followed_choice(unfollower_name, "Select the user to unfollow:")
+                if unfollowed_name: # Only proceed if a valid followed person was selected
+                    social_media_graph.removeEdge(unfollower_name, unfollowed_name)
             press_any_key_to_continue()
 
         elif choice == 'x':
